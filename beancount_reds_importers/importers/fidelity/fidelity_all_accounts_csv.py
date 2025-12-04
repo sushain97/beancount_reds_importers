@@ -76,7 +76,10 @@ class Importer(csvreader.Importer, investments.Importer):
         )
 
     def skip_transaction(self, ot):
-        return ot.type in ["", "Journal"]
+        if ot.account_number != self.config['account_number']:
+            return True
+
+        return False
 
     def prepare_table(self, rdr):
         if "" in rdr.fieldnames():
