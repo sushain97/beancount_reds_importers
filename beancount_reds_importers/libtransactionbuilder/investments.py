@@ -551,9 +551,12 @@ class Importer(importer.ImporterProtocol, transactionbuilder.TransactionBuilder)
     def add_fee_postings(self, entry, ot):
         config = self.config
         if hasattr(ot, "fees") or hasattr(ot, "commission"):
-            if getattr(ot, "fees", 0) != 0:
+            # do not compare fees/commission to 0 b/c in a csv import the empty
+            # field will be set as "" which does not equal 0 and will trigger
+            # a fee entry of 0.00 for every transaction
+            if getattr(ot, "fees", 0):
                 data.create_simple_posting(entry, config["fees"], ot.fees, self.currency)
-            if getattr(ot, "commission", 0) != 0:
+            if getattr(ot, "commission", 0):
                 data.create_simple_posting(entry, config["fees"], ot.commission, self.currency)
 
     def extract_custom_entries(self, file, counter):
