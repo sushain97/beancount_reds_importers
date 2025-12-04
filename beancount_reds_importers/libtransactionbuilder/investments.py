@@ -157,9 +157,14 @@ class Importer(importer.ImporterProtocol, transactionbuilder.TransactionBuilder)
                     v for k, v in self.funds_db.items() if security_id == k
                 ][0]
             except IndexError:
-                ticker, ticker_long_name = [
-                    v for k, v in self.funds_db.items() if security_id in k
-                ][0]
+                if getattr(self, "funds_db_txt", "funds_by_id") == "funds_by_ticker":
+                    # searching for a substring when report is set to funds_by_ticker
+                    # generates false positives e.g. 'V' matches 'VGK'
+                    raise IndexError('list index out of range')
+                else:
+                    ticker, ticker_long_name = [
+                        v for k, v in self.funds_db.items() if security_id in k
+                    ][0]
         except IndexError:
             print(f"Error: fund info not found for {security_id}", file=sys.stderr)
             securities = self.get_security_list()
@@ -168,9 +173,12 @@ class Importer(importer.ImporterProtocol, transactionbuilder.TransactionBuilder)
             securities_missing = list(securities)
             for s in securities:
                 for k in self.funds_db:
-                    if s == k:
-                        securities_missing.remove(s)
-
+                    if getattr(self, "funds_db_txt", "funds_by_id") == "funds_by_ticker":
+                        if s == k:
+                            securities_missing.remove(s)
+                    else:
+                        if s in k:
+                            securities_missing.remove(s)
             # try to extract security info from ofx
             ofx_securities = {}
             try:
