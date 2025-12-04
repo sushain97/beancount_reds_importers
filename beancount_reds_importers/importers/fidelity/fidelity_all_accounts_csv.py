@@ -43,16 +43,21 @@ class Importer(csvreader.Importer, investments.Importer):
             "TRANSFERRED FROM": "cash",
             "YOU BOUGHT": "buystock",
             "YOU SOLD": "sellstock",
+            "REDEMPTION PAYOUT": "sellother",
             "DIRECT DEPOSIT": "dep",
             "TRANSFERRED TO": "xfer",
             "MUNI EXEMPT": "income",
             "INTEREST EARNED": "income",
             "FEE CHARGED": "fee",
+            "ADVISOR FEE": "fee",
             "FOREIGN TAX": "fee",
             "BILL PAYMENT": "payment",
             "DEBIT CARD": "payment",
+            "Check Paid": "payment",
             "DIRECT DEBIT": "payment",
+            "Electronic Funds": "payment",
             "CHECK RECEIVED": "dep",
+            "CASH ADVANCE": "debit",
         }
         self.skip_transaction_types = []
         self.security_symbol_map = {
@@ -77,6 +82,11 @@ class Importer(csvreader.Importer, investments.Importer):
 
     def skip_transaction(self, ot):
         if ot.account_number != self.config['account_number']:
+            return True
+        if ot.type in ["MERGER MER", "ADJUST FEE", "DISTRIBUTION"]:
+            # this sort of transaction must be handled manually
+            # ADJUST FEE sounds like a fee, but has been used for a 1:1 reorg
+            # DISTRIBUTION is for splits
             return True
 
         return False
@@ -113,6 +123,8 @@ class Importer(csvreader.Importer, investments.Importer):
 
         # the REINVESTMENT action will include a fund symbol as the 2nd word,
         # so only use the first word for mapping
-        rdr = rdr.capture("Action", "(REINVESTMENT|\\S+(?:\\s+\\S+)?)", ["type"], include_original=True)
+        # DISTRIBUTION which is used for splits will also include a symbol as
+        # 2nd word
+        rdr = rdr.capture("Action", "(DISTRIBUTION|REINVESTMENT|\\S+(?:\\s+\\S+)?)", ["type"], include_original=True)
 
         return rdr
