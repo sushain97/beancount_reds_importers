@@ -55,6 +55,19 @@ class Importer(csvreader.Importer, investments.Importer):
             "CHECK RECEIVED": "dep",
         }
         self.skip_transaction_types = []
+        self.security_symbol_map = {
+            # if you have securities where you use a custom symbol
+            # instead of the one to be found in the CSV, example would
+            # be singhle letter symbols which cannot be a bc commodity name
+            "M": "M-M",
+            "V": "V-V",
+            "T": "T-T",
+            "C": "C-C",
+            "F": "F-F",
+            "G": "G-G",
+            "K": "K-K",
+            "A": "A-A",
+        }
         # fmt: on
 
     def deep_identify(self, file):
@@ -69,7 +82,7 @@ class Importer(csvreader.Importer, investments.Importer):
         if "" in rdr.fieldnames():
             rdr = rdr.cutout("")  # clean up last column
 
-        def cleanup_symbol(s):
+        def cusip_to_symbols(s):
             """
             Stocks and mutual funds are represented by their
             symbol, but bonds and core account funds (some?) use
@@ -78,7 +91,19 @@ class Importer(csvreader.Importer, investments.Importer):
             """
             return self.funds_by_id.get(s, (s,))[0]
 
-        rdr = rdr.convert("Symbol", cleanup_symbol)
+        def map_symbols(s):
+            """
+            Stocks and mutual funds are represented by their
+            symbol, but bonds and core account funds (some?) use
+            their cusip, try to convert these to symbol if they
+            are present in fund_data
+            """
+            return self.security_symbol_map.get(s, s)
+
+        rdr = rdr.convert("Symbol", cusip_to_symbols)
+        rdr = rdr.convert("Symbol", map_symbols)
+
+        rdr = rdr.convert("Symbol", "", where=lambda r: r.Action.startswith("INTEREST EARNED FDIC INSURED DEPOSIT AT"))
 
         rdr = rdr.addfield("total", lambda x: x["Amount"])
         rdr = rdr.addfield("tradeDate", lambda x: x["Run Date"])
