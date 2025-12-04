@@ -1,4 +1,4 @@
-"""Schwab Brokerage .csv importer."""
+"""Fidelity All Accounts .csv importer."""
 
 import re
 
