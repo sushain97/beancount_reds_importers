@@ -168,7 +168,7 @@ class Importer(importer.ImporterProtocol, transactionbuilder.TransactionBuilder)
             securities_missing = list(securities)
             for s in securities:
                 for k in self.funds_db:
-                    if s in k:
+                    if s == k:
                         securities_missing.remove(s)
 
             # try to extract security info from ofx
