@@ -168,8 +168,10 @@ class Importer(importer.ImporterProtocol, transactionbuilder.TransactionBuilder)
         except IndexError:
             print(f"Error: fund info not found for {security_id}", file=sys.stderr)
             securities = self.get_security_list()
-            if "" in securities:
-                securities.remove("")
+            for s in securities.copy():
+                if s.replace(" ", "") == "":
+                    # strip out any security_id that are empty or just spaces
+                    securities.remove(s)
             securities_missing = list(securities)
             for s in securities:
                 for k in self.funds_db:
