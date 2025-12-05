@@ -13,8 +13,8 @@ class Importer(csvreader.Importer, investments.Importer):
 
     def custom_init(self):
         self.max_rounding_error = 0.04
-        self.filename_pattern_def = ".*_Transactions_"
-        self.header_identifier = ""
+        self.filename_pattern_def = "Accounts_History.*"
+        self.header_identifier = "^Run Date,Account,Account Number,Action,Symbol.*"
         self.column_labels_line = (
             'Run Date,Account,Account Number,Action,Symbol,Description,Type,Exchange Quantity,Exchange Currency,Currency,Price,Quantity,Exchange Rate,Commission,Fees,Accrued Interest,Amount,Settlement Date'
         )
@@ -77,7 +77,7 @@ class Importer(csvreader.Importer, investments.Importer):
 
     def deep_identify(self, file):
         return (
-            re.match(self.header_identifier, file.head(), flags=re.DOTALL)
+            re.search(self.header_identifier, file.head(), flags=re.MULTILINE)
         )
 
     def skip_transaction(self, ot):
