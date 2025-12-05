@@ -15,9 +15,7 @@ class Importer(csvreader.Importer, investments.Importer):
         self.max_rounding_error = 0.04
         self.filename_pattern_def = "Accounts_History.*"
         self.header_identifier = "^Run Date,Account,Account Number,Action,Symbol.*"
-        self.column_labels_line = (
-            'Run Date,Account,Account Number,Action,Symbol,Description,Type,Exchange Quantity,Exchange Currency,Currency,Price,Quantity,Exchange Rate,Commission,Fees,Accrued Interest,Amount,Settlement Date'
-        )
+        self.column_labels_line = "Run Date,Account,Account Number,Action,Symbol,Description,Type,Exchange Quantity,Exchange Currency,Currency,Price,Quantity,Exchange Rate,Commission,Fees,Accrued Interest,Amount,Settlement Date"
         self.get_ticker_info = self.get_ticker_info_from_id
         self.date_format = "%m/%d/%Y"
         self.funds_db_txt = "funds_by_ticker"
@@ -75,12 +73,10 @@ class Importer(csvreader.Importer, investments.Importer):
         # fmt: on
 
     def deep_identify(self, file):
-        return (
-            re.search(self.header_identifier, file.head(), flags=re.MULTILINE)
-        )
+        return re.search(self.header_identifier, file.head(), flags=re.MULTILINE)
 
     def skip_transaction(self, ot):
-        if ot.account_number != self.config['account_number']:
+        if ot.account_number != self.config["account_number"]:
             return True
         if ot.type in ["MERGER MER", "ADJUST FEE", "DISTRIBUTION"]:
             # this sort of transaction must be handled manually
@@ -115,7 +111,13 @@ class Importer(csvreader.Importer, investments.Importer):
         rdr = rdr.convert("Symbol", cusip_to_symbols)
         rdr = rdr.convert("Symbol", map_symbols)
 
-        rdr = rdr.convert("Symbol", "", where=lambda r: r.Action.startswith("INTEREST EARNED FDIC INSURED DEPOSIT AT"))
+        rdr = rdr.convert(
+            "Symbol",
+            "",
+            where=lambda r: r.Action.startswith(
+                "INTEREST EARNED FDIC INSURED DEPOSIT AT"
+            ),
+        )
 
         rdr = rdr.addfield("total", lambda x: x["Amount"])
         rdr = rdr.addfield("tradeDate", lambda x: x["Run Date"])
@@ -124,6 +126,11 @@ class Importer(csvreader.Importer, investments.Importer):
         # so only use the first word for mapping
         # DISTRIBUTION which is used for splits will also include a symbol as
         # 2nd word
-        rdr = rdr.capture("Action", "(DISTRIBUTION|REINVESTMENT|\\S+(?:\\s+\\S+)?)", ["type"], include_original=True)
+        rdr = rdr.capture(
+            "Action",
+            "(DISTRIBUTION|REINVESTMENT|\\S+(?:\\s+\\S+)?)",
+            ["type"],
+            include_original=True,
+        )
 
         return rdr
