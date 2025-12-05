@@ -13,6 +13,7 @@ class Importer(csvreader.Importer, investments.Importer):
 
     def custom_init(self):
         self.max_rounding_error = 0.04
+        self.file_encoding = "utf-8-sig"
         self.filename_pattern_def = "Accounts_History.*"
         self.header_identifier = "^Run Date,Account,Account Number,Action,Symbol.*"
         self.column_labels_line = "Run Date,Account,Account Number,Action,Symbol,Description,Type,Exchange Quantity,Exchange Currency,Currency,Price,Quantity,Exchange Rate,Commission,Fees,Accrued Interest,Amount,Settlement Date"
