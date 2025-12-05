@@ -21,7 +21,6 @@ class Importer(csvreader.Importer, investments.Importer):
         self.get_ticker_info = self.get_ticker_info_from_id
         self.date_format = "%m/%d/%Y"
         self.funds_db_txt = "funds_by_ticker"
-        # self.get_payee = lambda ot: ot.Action
         # fmt: off
         self.header_map = {
             "Account Number": "account_number",
