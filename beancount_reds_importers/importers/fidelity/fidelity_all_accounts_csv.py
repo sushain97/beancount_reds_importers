@@ -1,6 +1,7 @@
 """Fidelity All Accounts .csv importer."""
 
 import re
+import math
 
 # from beangulp import cache
 
@@ -20,6 +21,7 @@ class Importer(csvreader.Importer, investments.Importer):
         self.get_ticker_info = self.get_ticker_info_from_id
         self.date_format = "%m/%d/%Y"
         self.funds_db_txt = "funds_by_ticker"
+        self.used_inferred_price = True  # calculate price to 4 decimal places rather than using csv price
         # fmt: off
         self.header_map = {
             "Account Number": "account_number",
@@ -28,12 +30,16 @@ class Importer(csvreader.Importer, investments.Importer):
             "Symbol": "security",
             "Quantity": "units",
             "Accrued Interest": "accrued_interest",
-            "Price": "unit_price",
             "Amount": "amount",
             "Settlement Date": "settleDate",
             "Fees": "fees",
             "Commission": "commission",
         }
+        if getattr(self, "used_inferred_price", False):
+            self.header_map["inferred_price"] = "unit_price"
+        else:
+            self.header_map["Price"] = "unit_price"
+
         self.transaction_type_map = {
             "REINVESTMENT": "buymf",
             "REDEMPTION FROM": "sellmf",
@@ -111,6 +117,9 @@ class Importer(csvreader.Importer, investments.Importer):
 
         rdr = rdr.convert("Symbol", cusip_to_symbols)
         rdr = rdr.convert("Symbol", map_symbols)
+
+        # add an inferred price column b/c csv prices are only to two decimals
+        rdr = rdr.addfield("inferred_price", lambda row: str(round(-1 * float(row["Amount"]) / float(row["Quantity"]), 4)) if not math.isclose(float(row["Quantity"]),0,rel_tol=1e-09,abs_tol=1e-09,) else "")
 
         rdr = rdr.convert(
             "Symbol",
