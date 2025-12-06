@@ -35,6 +35,19 @@ class Importer(investments.Importer, csvreader.Importer):
         }
         # fmt: on
         self.skip_transaction_types = []
+        self.security_symbol_map = {
+            # if you have securities where you use a custom symbol
+            # instead of the one to be found in the CSV, example would
+            # be singhle letter symbols which cannot be a bc commodity name
+            "M": "M-M",
+            "V": "V-V",
+            "T": "T-T",
+            "C": "C-C",
+            "F": "F-F",
+            "G": "G-G",
+            "K": "K-K",
+            "A": "A-A",
+        }
 
     def convert_columns(self, rdr):
         # fixup decimals
@@ -82,11 +95,17 @@ class Importer(investments.Importer, csvreader.Importer):
             """
             return self.funds_by_id.get(s, (s,))[0]
 
-        rdr = rdr.convert("Symbol", cusip_to_symbols)
+        def map_symbols(s):
+            """
+            Stocks and mutual funds are represented by their
+            symbol, but bonds and core account funds (some?) use
+            their cusip, try to convert these to symbol if they
+            are present in fund_data
+            """
+            return self.security_symbol_map.get(s, s)
 
-        # core account and things like SPAXX show up as SPAXX**
-        # rdr = rdr.convert("Symbol", lambda s: s.replace("**", ""))
-        # rdr = rdr.convert("Symbol", lambda s: s.replace("CORE", "Cash"))
+        rdr = rdr.convert("Symbol", cusip_to_symbols)
+        rdr = rdr.convert("Symbol", map_symbols)
 
         return rdr
 
