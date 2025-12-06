@@ -126,7 +126,7 @@ class Importer(investments.Importer, csvreader.Importer):
                         yield pos
 
     def get_available_cash(self, settlement_fund_balance):
-        core_acct_balance = 0
+        core_acct_balance = None
         for pos in self.rdr.namedtuples():
             if pos.account_number == self.config["account_number"]:
                 if pos.security.endswith("**"):  # these are core (cash) accounts
