@@ -64,6 +64,9 @@ class Importer(csvreader.Importer, investments.Importer):
             "Electronic Funds": "payment",
             "CHECK RECEIVED": "dep",
             "CASH ADVANCE": "debit",
+            "SHORT-TERM CAP": "capgainsd_st",
+            "LONG-TERM CAP": "capgainsd_lt",
+            "PARTIC CONTR": "dep",
         }
         self.skip_transaction_types = []
         self.security_symbol_map = {
@@ -87,7 +90,7 @@ class Importer(csvreader.Importer, investments.Importer):
     def skip_transaction(self, ot):
         if ot.account_number != self.config["account_number"]:
             return True
-        if ot.type in ["MERGER MER", "ADJUST FEE", "DISTRIBUTION"]:
+        if ot.type in ["MERGER MER", "ADJUST FEE", "DISTRIBUTION", "JOURNALED JNL"]:
             # this sort of transaction must be handled manually
             # ADJUST FEE sounds like a fee, but has been used for a 1:1 reorg
             # DISTRIBUTION is for splits
