@@ -3,6 +3,7 @@
 import datetime
 import re
 from decimal import Decimal
+import math
 
 from beancount.core.number import D
 
@@ -23,6 +24,7 @@ class Importer(investments.Importer, csvreader.Importer):
         self.get_ticker_info = self.get_ticker_info_from_id
         self.date_format = "%b-%d-%Y"
         self.funds_db_txt = "funds_by_ticker"
+        self.fix_muni_shares = True  # see prepare_raw_file, fidelity reports 100x share values for muni bonds
         self.column_labels_line = "Account Number,Account Name,Symbol,Description,Quantity,Last Price,Last Price Change,Current Value,Today's Gain/Loss Dollar,Today's Gain/Loss Percent,Total Gain/Loss Dollar,Total Gain/Loss Percent,Percent Of Account,Cost Basis Total,Average Cost Basis,Type"
         # fmt: off
         self.header_map = {
@@ -105,8 +107,43 @@ class Importer(investments.Importer, csvreader.Importer):
             """
             return self.security_symbol_map.get(s, s)
 
+        def fix_muni_shares(quantity, row):
+            """
+            Fidelity reports muni shares as 100x the actual value
+            By their own numbers shares * price = 100 x cost
+            try to identify this and adjust by dividing by 100
+            """
+            # if quantity is None or row["Price"] is None or row["Amount"] is None:
+            if None in [quantity, row["Last Price"], row["Current Value"]] or "" in [quantity, row["Last Price"], row["Current Value"]]:
+                # if quantity or price is not set there is nothing to fix here
+                return quantity
+            else:
+                # see if price seems to be 100x an inferred price which indicates
+                # the muni share problem
+                if not math.isclose(
+                    float(quantity),
+                    0,
+                    rel_tol=1e-09,
+                    abs_tol=1e-09,
+                ):
+                    numeric_value = re.sub(r"[^0-9\.]", "", row["Current Value"])
+                    numeric_price = re.sub(r"[^0-9\.]", "", row["Last Price"])
+                    inferred_price = round(abs(float(numeric_value)) / abs(float(quantity)), 4)
+
+                    if float(numeric_price) / inferred_price > 90:
+                        # the provided prices is ~100x the calculated price
+                        # This happens when muni bond shares are reported 100x too high
+                        return str(round(float(quantity) / 100))
+                    else:
+                        # calculated price is about equal to provided one, no muni bond problem
+                        return quantity
+                else:
+                    return quantity
+
         rdr = rdr.convert("Symbol", cusip_to_symbols)
         rdr = rdr.convert("Symbol", map_symbols)
+        if getattr(self, "fix_muni_shares", False):
+            rdr = rdr.convert("Quantity", fix_muni_shares, pass_row=True)
 
         return rdr
 
