@@ -2,6 +2,7 @@
 
 import datetime
 import re
+from decimal import Decimal
 
 from beancount.core.number import D
 
@@ -126,11 +127,7 @@ class Importer(investments.Importer, csvreader.Importer):
                         yield pos
 
     def get_available_cash(self, settlement_fund_balance):
-        # if this is returned as 0 then
-        # amount.Amount(available_cash, self.currency) fails, but setting this
-        # to none will mean we do not have $0 balance assertions when they should
-        # exist
-        core_acct_balance = None
+        core_acct_balance = Decimal()
         for pos in self.rdr.namedtuples():
             if pos.account_number == self.config["account_number"]:
                 if pos.security.endswith("**"):  # these are core (cash) accounts
