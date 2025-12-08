@@ -1,9 +1,9 @@
 """Fidelity positions csv importer."""
 
 import datetime
+import math
 import re
 from decimal import Decimal
-import math
 
 from beancount.core.number import D
 
@@ -81,13 +81,17 @@ class Importer(investments.Importer, csvreader.Importer):
             # looking for row with date
             # Date downloaded Dec-05-2025 at 1:02 p.m ET
             if len(r) >= 1:
-                pattern = re.compile(r"Date downloaded ((?i:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-\d{2}-\d{4})")
+                pattern = re.compile(
+                    r"Date downloaded ((?i:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-\d{2}-\d{4})"
+                )
                 match = pattern.search(r[0])
                 if match:
-                    self.date = datetime.datetime.strptime(match.group(1), self.date_format)
+                    self.date = datetime.datetime.strptime(
+                        match.group(1), self.date_format
+                    )
 
         # add date to each record
-        rdr = rdr.addfields([('date', self.date)])
+        rdr = rdr.addfields([("date", self.date)])
 
         def cusip_to_symbols(s):
             """
@@ -107,14 +111,18 @@ class Importer(investments.Importer, csvreader.Importer):
             """
             return self.security_symbol_map.get(s, s)
 
-        def fix_muni_shares(quantity, row):
+        def adjust_muni_share_count(quantity, row):
             """
             Fidelity reports muni shares as 100x the actual value
             By their own numbers shares * price = 100 x cost
             try to identify this and adjust by dividing by 100
             """
             # if quantity is None or row["Price"] is None or row["Amount"] is None:
-            if None in [quantity, row["Last Price"], row["Current Value"]] or "" in [quantity, row["Last Price"], row["Current Value"]]:
+            if None in [quantity, row["Last Price"], row["Current Value"]] or "" in [
+                quantity,
+                row["Last Price"],
+                row["Current Value"],
+            ]:
                 # if quantity or price is not set there is nothing to fix here
                 return quantity
             else:
@@ -128,7 +136,9 @@ class Importer(investments.Importer, csvreader.Importer):
                 ):
                     numeric_value = re.sub(r"[^0-9\.]", "", row["Current Value"])
                     numeric_price = re.sub(r"[^0-9\.]", "", row["Last Price"])
-                    inferred_price = round(abs(float(numeric_value)) / abs(float(quantity)), 4)
+                    inferred_price = round(
+                        abs(float(numeric_value)) / abs(float(quantity)), 4
+                    )
 
                     if float(numeric_price) / inferred_price > 90:
                         # the provided prices is ~100x the calculated price
@@ -143,7 +153,7 @@ class Importer(investments.Importer, csvreader.Importer):
         rdr = rdr.convert("Symbol", cusip_to_symbols)
         rdr = rdr.convert("Symbol", map_symbols)
         if getattr(self, "fix_muni_shares", False):
-            rdr = rdr.convert("Quantity", fix_muni_shares, pass_row=True)
+            rdr = rdr.convert("Quantity", adjust_muni_share_count, pass_row=True)
 
         return rdr
 
@@ -160,7 +170,9 @@ class Importer(investments.Importer, csvreader.Importer):
         for pos in self.rdr.namedtuples():
             if pos.account_number == self.config["account_number"]:
                 if pos.security not in ["Pending activity"]:  # unsettled transactions
-                    if not pos.security.endswith("**"):  # these are core (cash) accounts
+                    if not pos.security.endswith(
+                        "**"
+                    ):  # these are core (cash) accounts
                         yield pos
 
     def get_available_cash(self, settlement_fund_balance):
@@ -171,4 +183,3 @@ class Importer(investments.Importer, csvreader.Importer):
                     core_acct_balance = pos.balance
 
         return core_acct_balance
-
