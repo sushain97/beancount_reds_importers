@@ -167,6 +167,15 @@ class Importer(csvreader.Importer, investments.Importer):
                 else:
                     return quantity
 
+        def add_precision(value):
+            # add decimal places if none are present because
+            # beancount treats values with no decimal places
+            # as infinitely precise
+            if '.' not in value:
+                return value + ".00"
+
+            return value
+
         rdr = rdr.convert("Symbol", cusip_to_symbols)
         rdr = rdr.convert("Symbol", map_symbols)
         if getattr(self, "fix_muni_shares", False):
@@ -203,7 +212,8 @@ class Importer(csvreader.Importer, investments.Importer):
 
         rdr = rdr.addfield("total", lambda x: x["Amount"])
         rdr = rdr.addfield("tradeDate", lambda x: x["Run Date"])
-
+        for f in ["Amount", "Quantity", "total"]:
+            rdr = rdr.convert(f, add_precision)
         # the REINVESTMENT action will include a fund symbol as the 2nd word,
         # so only use the first word for mapping
         # DISTRIBUTION which is used for splits will also include a symbol as
