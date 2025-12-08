@@ -1,12 +1,13 @@
 """Fidelity All Accounts .csv importer."""
 
-import re
 import math
-
-# from beangulp import cache
+import re
 
 from beancount_reds_importers.libreader import csvreader
 from beancount_reds_importers.libtransactionbuilder import investments
+
+# from beangulp import cache
+
 
 
 class Importer(csvreader.Importer, investments.Importer):
@@ -23,6 +24,9 @@ class Importer(csvreader.Importer, investments.Importer):
         self.funds_db_txt = "funds_by_ticker"
         self.used_inferred_price = (
             True  # calculate price to 4 decimal places rather than using csv price
+        )
+        self.fix_muni_shares = (
+            True  # see prepare_table, fidelity reports 100x share values for muni bonds
         )
         # fmt: off
         self.header_map = {
@@ -41,7 +45,6 @@ class Importer(csvreader.Importer, investments.Importer):
             self.header_map["inferred_price"] = "unit_price"
         else:
             self.header_map["Price"] = "unit_price"
-
         self.transaction_type_map = {
             "REINVESTMENT": "buymf",
             "REDEMPTION FROM": "sellmf",
@@ -120,14 +123,66 @@ class Importer(csvreader.Importer, investments.Importer):
             """
             return self.security_symbol_map.get(s, s)
 
+        def adjust_muni_share_count(quantity, row):
+            """
+            Fidelity reports muni shares as 100x the actual value
+            By their own numbers shares * price = 100 x cost
+            try to identify this and adjust by dividing by 100
+            """
+
+            # if quantity is None or row["Price"] is None or row["Amount"] is None:
+            if None in [quantity, row["Price"], row["Amount"]] or "" in [
+                quantity,
+                row["Price"],
+                row["Amount"],
+            ]:
+                # if quantity or price is not set there is nothing to fix here
+                return quantity
+            else:
+                # see if price seems to be 100x an inferred price which indicates
+                # the muni share problem
+                if not math.isclose(
+                    float(quantity),
+                    0,
+                    rel_tol=1e-09,
+                    abs_tol=1e-09,
+                ):
+                    inferred_price = (
+                        round(
+                            (abs(float(row["Amount"])) - float(row["Accrued Interest"]))
+                            / abs(float(quantity)),
+                            4,
+                        )
+                        if row["Accrued Interest"]
+                        else round(abs(float(row["Amount"])) / abs(float(quantity)), 4)
+                    )
+
+                    if float(row["Price"]) / inferred_price > 90:
+                        # the provided prices is ~100x the calculated price
+                        # This happens when muni bond shares are reported 100x too high
+                        return str(round(float(quantity) / 100))
+                    else:
+                        # calculated price is about equal to provided one, no muni bond problem
+                        return quantity
+                else:
+                    return quantity
+
         rdr = rdr.convert("Symbol", cusip_to_symbols)
         rdr = rdr.convert("Symbol", map_symbols)
+        if getattr(self, "fix_muni_shares", False):
+            rdr = rdr.convert("Quantity", adjust_muni_share_count, pass_row=True)
 
         # add an inferred price column b/c csv prices are only to two decimals
         rdr = rdr.addfield(
             "inferred_price",
             lambda row: str(
-                round(-1 * float(row["Amount"]) / float(row["Quantity"]), 4)
+                round(
+                    (abs(float(row["Amount"])) - float(row["Accrued Interest"]))
+                    / abs(float(row["Quantity"])),
+                    4,
+                )
+                if row["Accrued Interest"]
+                else round(abs(float(row["Amount"])) / abs(float(row["Quantity"])), 4)
             )
             if not math.isclose(
                 float(row["Quantity"]),
