@@ -150,10 +150,22 @@ class Importer(investments.Importer, csvreader.Importer):
                 else:
                     return quantity
 
+        def add_precision(value):
+            # add decimal places if none are present because
+            # beancount treats values with no decimal places
+            # as infinitely precise
+            if '.' not in value:
+                return value + ".00"
+
+            return value
+
         rdr = rdr.convert("Symbol", cusip_to_symbols)
         rdr = rdr.convert("Symbol", map_symbols)
         if getattr(self, "fix_muni_shares", False):
             rdr = rdr.convert("Quantity", adjust_muni_share_count, pass_row=True)
+
+        for f in ["Last Price", "Quantity"]:
+            rdr = rdr.convert(f, add_precision)
 
         return rdr
 
