@@ -85,6 +85,12 @@ class Importer(csvreader.Importer, investments.Importer):
             "WIRE TRANSFER": "dep",
             "CONTRIBUTED TO": "sellstock",
             "IN LIEU": "dep",
+            "CASH CONTRIBUTION": "dep",
+            "ROLLOVER CASH": "dep",
+            "TRANSFER OF": "dep",
+            "PART CONTRIB": "dep",
+            "ROLLOVER SHARES": "buystock",  # rollover from closed account...almost certainly needs to be edited manually
+            "CONVERSION as": "buymf",  # conversion of mutual fund class...almost certainly needs to be edited manually
         }
         self.skip_transaction_types = []
         self.security_symbol_map = {
