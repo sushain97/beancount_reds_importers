@@ -70,6 +70,9 @@ class Importer(csvreader.Importer, investments.Importer):
             "SHORT-TERM CAP": "capgainsd_st",
             "LONG-TERM CAP": "capgainsd_lt",
             "PARTIC CONTR": "dep",
+            "WIRE TRANSFER": "dep",
+            "CONTRIBUTED TO": "sellstock",
+            "IN LIEU": "dep",
         }
         self.skip_transaction_types = []
         self.security_symbol_map = {
