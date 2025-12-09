@@ -2,7 +2,7 @@
 
 import math
 import re
-
+from datetime import datetime
 from beancount_reds_importers.libreader import csvreader
 from beancount_reds_importers.libtransactionbuilder import investments
 
@@ -86,6 +86,22 @@ class Importer(csvreader.Importer, investments.Importer):
             "A": "A-A",
         }
         # fmt: on
+
+    def get_max_transaction_date(self):
+        try:
+            # NOTE: this is the same as the code in csvreader.py, but the exception does not
+            # generate an error...for the fidelity csv transaction file there are no balance
+            # assertions, so not being able to generate them is not an error.  This will occur for any
+            # account in the import file that has no transactions
+
+            date = max(
+                ot.tradeDate if hasattr(ot, "tradeDate") else ot.date
+                for ot in self.get_transactions()
+            ).date()
+        except Exception as err:
+            date = datetime.today().date()
+
+        return date
 
     def deep_identify(self, file):
         return re.search(self.header_identifier, file.head(), flags=re.MULTILINE)
