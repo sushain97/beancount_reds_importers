@@ -28,6 +28,18 @@ class Importer(csvreader.Importer, investments.Importer):
         self.fix_muni_shares = (
             True  # see prepare_table, fidelity reports 100x share values for muni bonds
         )
+        self.actions_to_treat_as_cash = (
+            # these are deposit sweep funds, just treat them as cash...will have
+            # a huge variety of symbols, some with impossible to find CUSIP
+            "INTEREST EARNED FDIC INSURED DEPOSIT AT",
+            "INTEREST EARNED CIBC INSTITUTIONAL DEPOSIT SWEEP PROGRAM (QCIBQ)",
+        )
+        self.actions_to_treat_as_cash_reinvestment = [
+            # similar to actions_to_treat_as_cash, some of these deposit sweep funds
+            # will reinvest interest payments...the above treats the earned interest
+            # as cash, will ignore the reinvestment transaction
+            "REINVESTMENT CIBC INSTITUTIONAL DEPOSIT SWEEP PROGRAM (QCIBQ) (Cash)",
+        ]
         # fmt: off
         self.header_map = {
             "Account Number": "account_number",
@@ -224,11 +236,9 @@ class Importer(csvreader.Importer, investments.Importer):
         rdr = rdr.convert(
             "Symbol",
             "",
-            where=lambda r: r.Action.startswith(
-                "INTEREST EARNED FDIC INSURED DEPOSIT AT"
-            ),
+            where=lambda r: r.Action.startswith(self.actions_to_treat_as_cash),
         )
-
+        rdr = rdr.selectnotin("Action", self.actions_to_treat_as_cash_reinvestment)
         rdr = rdr.addfield("total", lambda x: x["Amount"])
         rdr = rdr.addfield("tradeDate", lambda x: x["Run Date"])
         for f in ["Amount", "Quantity", "total"]:
