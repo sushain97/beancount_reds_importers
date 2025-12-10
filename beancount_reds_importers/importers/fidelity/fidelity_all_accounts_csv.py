@@ -22,6 +22,7 @@ class Importer(csvreader.Importer, investments.Importer):
         self.get_ticker_info = self.get_ticker_info_from_id
         self.date_format = "%m/%d/%Y"
         self.funds_db_txt = "funds_by_ticker"
+        self.currency = self.config.get("currency", None)
         self.use_inferred_price = self.config.get(
             # calculate price to 4 decimal places rather than using csv price
             "use_inferred_price",
