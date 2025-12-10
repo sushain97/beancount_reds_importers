@@ -3,11 +3,11 @@
 import math
 import re
 from datetime import datetime
+
 from beancount_reds_importers.libreader import csvreader
 from beancount_reds_importers.libtransactionbuilder import investments
 
 # from beangulp import cache
-
 
 
 class Importer(csvreader.Importer, investments.Importer):
@@ -22,24 +22,36 @@ class Importer(csvreader.Importer, investments.Importer):
         self.get_ticker_info = self.get_ticker_info_from_id
         self.date_format = "%m/%d/%Y"
         self.funds_db_txt = "funds_by_ticker"
-        self.used_inferred_price = (
-            True  # calculate price to 4 decimal places rather than using csv price
+        self.use_inferred_price = self.config.get(
+            # calculate price to 4 decimal places rather than using csv price
+            "use_inferred_price",
+            False,
         )
-        self.fix_muni_shares = (
-            True  # see prepare_table, fidelity reports 100x share values for muni bonds
+        self.fix_muni_shares = self.config.get(
+            # see prepare_table, fidelity reports 100x share values for muni bonds
+            "fix_muni_shares",
+            False,
         )
-        self.actions_to_treat_as_cash = (
+        self.actions_to_treat_as_cash = self.config.get(
             # these are deposit sweep funds, just treat them as cash...will have
             # a huge variety of symbols, some with impossible to find CUSIP
-            "INTEREST EARNED FDIC INSURED DEPOSIT AT",
-            "INTEREST EARNED CIBC INSTITUTIONAL DEPOSIT SWEEP PROGRAM (QCIBQ)",
+            "actions_to_treat_as_cash",
+            tuple(),
         )
-        self.actions_to_treat_as_cash_reinvestment = [
+        self.actions_to_treat_as_cash_reinvestment = self.config.get(
             # similar to actions_to_treat_as_cash, some of these deposit sweep funds
             # will reinvest interest payments...the above treats the earned interest
             # as cash, will ignore the reinvestment transaction
-            "REINVESTMENT CIBC INSTITUTIONAL DEPOSIT SWEEP PROGRAM (QCIBQ) (Cash)",
-        ]
+            "actions_to_treat_as_cash_reinvestment",
+            [],
+        )
+        self.security_symbol_map = self.config.get(
+            # if you have securities where you use a custom symbol
+            # instead of the one to be found in the CSV, example would
+            # be singhle letter symbols which cannot be a bc commodity name
+            "security_symbol_map",
+            dict(),
+        )
         # fmt: off
         self.header_map = {
             "Account Number": "account_number",
@@ -53,7 +65,7 @@ class Importer(csvreader.Importer, investments.Importer):
             "Fees": "fees",
             "Commission": "commission",
         }
-        if getattr(self, "used_inferred_price", False):
+        if self.use_inferred_price:
             self.header_map["inferred_price"] = "unit_price"
         else:
             self.header_map["Price"] = "unit_price"
@@ -96,19 +108,6 @@ class Importer(csvreader.Importer, investments.Importer):
             "CONVERSION as": "buymf",  # conversion of mutual fund class...almost certainly needs to be edited manually
         }
         self.skip_transaction_types = []
-        self.security_symbol_map = {
-            # if you have securities where you use a custom symbol
-            # instead of the one to be found in the CSV, example would
-            # be singhle letter symbols which cannot be a bc commodity name
-            "M": "M-M",
-            "V": "V-V",
-            "T": "T-T",
-            "C": "C-C",
-            "F": "F-F",
-            "G": "G-G",
-            "K": "K-K",
-            "A": "A-A",
-        }
         # fmt: on
 
     def get_max_transaction_date(self):
@@ -211,14 +210,14 @@ class Importer(csvreader.Importer, investments.Importer):
             # add decimal places if none are present because
             # beancount treats values with no decimal places
             # as infinitely precise
-            if '.' not in value:
+            if "." not in value:
                 return value + ".00"
 
             return value
 
         rdr = rdr.convert("Symbol", cusip_to_symbols)
         rdr = rdr.convert("Symbol", map_symbols)
-        if getattr(self, "fix_muni_shares", False):
+        if self.fix_muni_shares:
             rdr = rdr.convert("Quantity", adjust_muni_share_count, pass_row=True)
 
         # add an inferred price column b/c csv prices are only to two decimals
