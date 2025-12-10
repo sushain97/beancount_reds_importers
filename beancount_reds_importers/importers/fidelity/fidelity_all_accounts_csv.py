@@ -2,7 +2,7 @@
 
 import math
 import re
-
+from datetime import datetime
 from beancount_reds_importers.libreader import csvreader
 from beancount_reds_importers.libtransactionbuilder import investments
 
@@ -28,6 +28,18 @@ class Importer(csvreader.Importer, investments.Importer):
         self.fix_muni_shares = (
             True  # see prepare_table, fidelity reports 100x share values for muni bonds
         )
+        self.actions_to_treat_as_cash = (
+            # these are deposit sweep funds, just treat them as cash...will have
+            # a huge variety of symbols, some with impossible to find CUSIP
+            "INTEREST EARNED FDIC INSURED DEPOSIT AT",
+            "INTEREST EARNED CIBC INSTITUTIONAL DEPOSIT SWEEP PROGRAM (QCIBQ)",
+        )
+        self.actions_to_treat_as_cash_reinvestment = [
+            # similar to actions_to_treat_as_cash, some of these deposit sweep funds
+            # will reinvest interest payments...the above treats the earned interest
+            # as cash, will ignore the reinvestment transaction
+            "REINVESTMENT CIBC INSTITUTIONAL DEPOSIT SWEEP PROGRAM (QCIBQ) (Cash)",
+        ]
         # fmt: off
         self.header_map = {
             "Account Number": "account_number",
@@ -60,6 +72,9 @@ class Importer(csvreader.Importer, investments.Importer):
             "FEE CHARGED": "fee",
             "ADVISOR FEE": "fee",
             "FOREIGN TAX": "fee",
+            "ADJ FOREIGN": "fee",
+            "BUY CANCEL": "fee",  # longer text here is BUY CANCEL TAX PAID as of May-05-2025...
+            "DIVIDEND ADJUSTMENT": "fee",  # longer text here is FOREIGN TAX PAID as of May-05-2025...
             "BILL PAYMENT": "payment",
             "DEBIT CARD": "payment",
             "Check Paid": "payment",
@@ -70,6 +85,15 @@ class Importer(csvreader.Importer, investments.Importer):
             "SHORT-TERM CAP": "capgainsd_st",
             "LONG-TERM CAP": "capgainsd_lt",
             "PARTIC CONTR": "dep",
+            "WIRE TRANSFER": "dep",
+            "CONTRIBUTED TO": "sellstock",
+            "IN LIEU": "dep",
+            "CASH CONTRIBUTION": "dep",
+            "ROLLOVER CASH": "dep",
+            "TRANSFER OF": "dep",
+            "PART CONTRIB": "dep",
+            "ROLLOVER SHARES": "buystock",  # rollover from closed account...almost certainly needs to be edited manually
+            "CONVERSION as": "buymf",  # conversion of mutual fund class...almost certainly needs to be edited manually
         }
         self.skip_transaction_types = []
         self.security_symbol_map = {
@@ -86,6 +110,22 @@ class Importer(csvreader.Importer, investments.Importer):
             "A": "A-A",
         }
         # fmt: on
+
+    def get_max_transaction_date(self):
+        try:
+            # NOTE: this is the same as the code in csvreader.py, but the exception does not
+            # generate an error...for the fidelity csv transaction file there are no balance
+            # assertions, so not being able to generate them is not an error.  This will occur for any
+            # account in the import file that has no transactions
+
+            date = max(
+                ot.tradeDate if hasattr(ot, "tradeDate") else ot.date
+                for ot in self.get_transactions()
+            ).date()
+        except Exception as err:
+            date = datetime.today().date()
+
+        return date
 
     def deep_identify(self, file):
         return re.search(self.header_identifier, file.head(), flags=re.MULTILINE)
@@ -205,11 +245,9 @@ class Importer(csvreader.Importer, investments.Importer):
         rdr = rdr.convert(
             "Symbol",
             "",
-            where=lambda r: r.Action.startswith(
-                "INTEREST EARNED FDIC INSURED DEPOSIT AT"
-            ),
+            where=lambda r: r.Action.startswith(self.actions_to_treat_as_cash),
         )
-
+        rdr = rdr.selectnotin("Action", self.actions_to_treat_as_cash_reinvestment)
         rdr = rdr.addfield("total", lambda x: x["Amount"])
         rdr = rdr.addfield("tradeDate", lambda x: x["Run Date"])
         for f in ["Amount", "Quantity", "total"]:
