@@ -6,7 +6,8 @@ import sys
 from beancount.ingest import regression_pytest as regtest
 
 # hack to use testing code
-sys.path.insert(0, "/Users/ware/Documents/code/thehill/beancount_reds_importers")
+sys.path.insert(0, path.normpath(path.join(path.dirname(__file__), "../../../../..")))
+
 from beancount_reds_importers.importers.fidelity import fidelity_all_accounts_csv
 
 fund_data = [
@@ -36,6 +37,7 @@ fund_info = {
 config = {
     "currency": "USD",
     "account_number": "333333333",
+    'add_precision': True,
     'use_inferred_price': True,
     'fix_muni_shares': True,
     'security_symbol_map': {
