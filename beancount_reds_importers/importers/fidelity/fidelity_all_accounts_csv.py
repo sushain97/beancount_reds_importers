@@ -53,6 +53,7 @@ class Importer(csvreader.Importer, investments.Importer):
             "security_symbol_map",
             dict(),
         )
+        self.add_precision = self.config.get("add_precision", False)  # add some decimal precision to quantity and value fields if none is present
         # fmt: off
         self.header_map = {
             "Account Number": "account_number",
@@ -250,8 +251,9 @@ class Importer(csvreader.Importer, investments.Importer):
         rdr = rdr.selectnotin("Action", self.actions_to_treat_as_cash_reinvestment)
         rdr = rdr.addfield("total", lambda x: x["Amount"])
         rdr = rdr.addfield("tradeDate", lambda x: x["Run Date"])
-        for f in ["Amount", "Quantity", "total"]:
-            rdr = rdr.convert(f, add_precision)
+        if self.add_precision:
+            for f in ["Amount", "Quantity", "total"]:
+                rdr = rdr.convert(f, add_precision)
         # the REINVESTMENT action will include a fund symbol as the 2nd word,
         # so only use the first word for mapping
         # DISTRIBUTION which is used for splits will also include a symbol as
