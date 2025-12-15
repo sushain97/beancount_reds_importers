@@ -3,7 +3,10 @@
 from os import path
 import sys
 
-from beancount.ingest import regression_pytest as regtest
+try:
+    from beancount.ingest import regression_pytest as regtest
+except ModuleNotFoundError:
+    from beancount_reds_importers.util import regression_pytest as regtest
 
 # hack to use testing code
 sys.path.insert(0, path.normpath(path.join(path.dirname(__file__), "../../../../..")))
