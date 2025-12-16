@@ -115,7 +115,6 @@ class Importer(csvreader.Importer, investments.Importer):
             "CHANGE ON": "capgainsd_lt",
             "WITHDRAWALS": "sellmf",
         }
-        self.skip_transaction_types = []
         # fmt: on
 
     def get_max_transaction_date(self):
@@ -257,6 +256,7 @@ class Importer(csvreader.Importer, investments.Importer):
         if self.add_precision:
             for f in ["Amount", "Quantity", "total"]:
                 rdr = rdr.convert(f, add_precision)
+
         # the REINVESTMENT action will include a fund symbol as the 2nd word,
         # so only use the first word for mapping
         # DISTRIBUTION which is used for splits will also include a symbol as
