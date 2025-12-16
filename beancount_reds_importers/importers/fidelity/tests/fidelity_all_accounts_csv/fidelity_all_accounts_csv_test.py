@@ -1,7 +1,7 @@
 # flake8: noqa
 
-from os import path
 import sys
+from os import path
 
 # hack to use testing code
 sys.path.insert(0, path.normpath(path.join(path.dirname(__file__), "../../../../..")))
