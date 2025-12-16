@@ -140,13 +140,10 @@ class Importer(csvreader.Importer, investments.Importer):
     def skip_transaction(self, ot):
         if ot.account_number != self.config["account_number"]:
             return True
-        if ot.type in ["MERGER MER", "ADJUST FEE", "DISTRIBUTION", "JOURNALED JNL"]:
-            # this sort of transaction must be handled manually
-            # ADJUST FEE sounds like a fee, but has been used for a 1:1 reorg
-            # DISTRIBUTION is for splits
-            return True
-
-        return False
+        return ot.type in ["MERGER MER", "ADJUST FEE", "DISTRIBUTION", "JOURNALED JNL"]
+        # this sort of transaction must be handled manually
+        # ADJUST FEE sounds like a fee, but has been used for a 1:1 reorg
+        # DISTRIBUTION is for splits
 
     def prepare_table(self, rdr):
         if "" in rdr.fieldnames():
