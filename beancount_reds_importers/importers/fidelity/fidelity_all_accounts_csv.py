@@ -118,7 +118,7 @@ class Importer(csvreader.Importer, investments.Importer):
             "WITHDRAWALS": "sellmf",
             "CO CONTR": "dep",
             "Dividend": "dividends",
-            "Contributions": "dep",
+            "Contributions": "buystock",
             "Transfer": "xfer",
         }
         # fmt: on
