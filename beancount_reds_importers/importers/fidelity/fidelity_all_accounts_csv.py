@@ -17,8 +17,16 @@ class Importer(csvreader.Importer, investments.Importer):
         self.max_rounding_error = 0.04
         self.file_encoding = "utf-8-sig"
         self.filename_pattern_def = "Accounts_History.*"
-        self.header_identifier = "^Run Date,Account,Account Number,Action,Symbol.*"
-        self.column_labels_line = "Run Date,Account,Account Number,Action,Symbol,Description,Type,Exchange Quantity,Exchange Currency,Currency,Price,Quantity,Exchange Rate,Commission,Fees,Accrued Interest,Amount,Settlement Date"
+
+        # Fidelity is inconsistent in the csv columns and even column labels, the bewlow two settings
+        # should exactly match what is in your csv...if not override via the config
+        self.header_identifier = self.config.get(
+            "header_identifier", "^Run Date,Account,Account Number,Action,Symbol.*"
+        )
+        self.column_labels_line = self.config.get(
+            "column_labels_line",
+            "Run Date,Account,Account Number,Action,Symbol,Description,Type,Exchange Quantity,Exchange Currency,Currency,Price,Quantity,Exchange Rate,Commission,Fees,Accrued Interest,Amount,Settlement Date",
+        )
         self.get_ticker_info = self.get_ticker_info_from_id
         self.date_format = "%m/%d/%Y"
         self.funds_db_txt = "funds_by_ticker"
@@ -53,7 +61,9 @@ class Importer(csvreader.Importer, investments.Importer):
             "security_symbol_map",
             dict(),
         )
-        self.add_precision = self.config.get("add_precision", False)  # add some decimal precision to quantity and value fields if none is present
+        self.add_precision = self.config.get(
+            "add_precision", False
+        )  # add some decimal precision to quantity and value fields if none is present
         # fmt: off
         self.header_map = {
             "Account Number": "account_number",
@@ -134,7 +144,9 @@ class Importer(csvreader.Importer, investments.Importer):
         return date
 
     def deep_identify(self, file):
-        return re.search(self.header_identifier, cache.get_file(file).head(), flags=re.MULTILINE)
+        return re.search(
+            self.header_identifier, cache.get_file(file).head(), flags=re.MULTILINE
+        )
 
     def skip_transaction(self, ot):
         if ot.account_number != self.config["account_number"]:
@@ -147,6 +159,14 @@ class Importer(csvreader.Importer, investments.Importer):
     def prepare_table(self, rdr):
         if "" in rdr.fieldnames():
             rdr = rdr.cutout("")  # clean up last column
+
+        # fidelity sometimes includes ' ($)' after some currency fields
+        # e.g. 'Amount' vs. 'Amount ($)'.  The header rows configured above
+        # (header_identifier or column_labels_line) should match this, but strip
+        # them out here because mapping and calculations based on this assume
+        # there is no ($)
+        header_map = {k: re.sub(r"(\s?)\(\$\)", "", k) for k in rdr.header()}
+        rdr = rdr.rename(header_map)
 
         def cusip_to_symbols(s):
             """
@@ -267,6 +287,6 @@ class Importer(csvreader.Importer, investments.Importer):
             ["type"],
             include_original=True,
         )
-        rdr.convert("type", 'upper')
+        rdr.convert("type", "upper")
 
         return rdr
