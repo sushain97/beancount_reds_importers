@@ -121,6 +121,7 @@ class Importer(csvreader.Importer, investments.Importer):
             "Dividend": "reinvest",
             "Contributions": "buystock",
             "Transfer": "xfer",
+            "PURCHASE INTO": "buystock",
         }
         # fmt: on
 
