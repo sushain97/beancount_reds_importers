@@ -53,6 +53,7 @@ class Importer(csvreader.Importer, investments.Importer):
             "security_symbol_map",
             dict(),
         )
+        self.security_description_map = self.config.get("security_description_map", {})
         self.add_precision = self.config.get(
             "add_precision", False
         )  # add some decimal precision to quantity and value fields if none is present
@@ -117,7 +118,7 @@ class Importer(csvreader.Importer, investments.Importer):
             "CHANGE ON": "capgainsd_lt",
             "WITHDRAWALS": "sellmf",
             "CO CONTR": "dep",
-            "Dividend": "dividends",
+            "Dividend": "reinvest",
             "Contributions": "buystock",
             "Transfer": "xfer",
         }
@@ -171,6 +172,13 @@ class Importer(csvreader.Importer, investments.Importer):
             are present in fund_data
             """
             return self.security_symbol_map.get(s, s)
+
+        def symbol_from_description(symbol, row):
+            if symbol:
+                return symbol
+
+            if (d := row.get("Description", "")) in self.security_description_map:
+                return self.security_description_map[d]
 
         def adjust_muni_share_count(quantity, row):
             """
@@ -227,8 +235,23 @@ class Importer(csvreader.Importer, investments.Importer):
 
         rdr = rdr.convert("Symbol", cusip_to_symbols)
         rdr = rdr.convert("Symbol", map_symbols)
+        rdr = rdr.convert("Symbol", symbol_from_description, pass_row=True)
         if self.fix_muni_shares:
             rdr = rdr.convert("Quantity", adjust_muni_share_count, pass_row=True)
+
+        # handle 401K entries where Price is used for Quantity
+        rdr = rdr.convert(
+            "Quantity",
+            lambda v, row: row["Price"]
+            if row["Action"] in ["Contributions", "Dividend"]
+            else v,
+            pass_row=True,
+        )
+        rdr = rdr.convert(
+            "Price",
+            lambda v, row: "" if row["Action"] in ["Contributions", "Dividend"] else v,
+            pass_row=True,
+        )
 
         # add an inferred price column b/c csv prices are only to two decimals
         rdr = rdr.addfield(
