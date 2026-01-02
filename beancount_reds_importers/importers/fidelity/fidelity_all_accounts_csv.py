@@ -18,7 +18,7 @@ class Importer(csvreader.Importer, investments.Importer):
         self.file_encoding = "utf-8-sig"
         self.filename_pattern_def = "Accounts_History.*"
         self.header_identifier = "^Run Date,Account,Account Number,Action,Symbol.*"
-        self.column_labels_line = "Run Date,Account,Account Number,Action,Symbol,Description,Type,Exchange Quantity,Exchange Currency,Currency,Price,Quantity,Exchange Rate,Commission,Fees,Accrued Interest,Amount,Settlement Date"
+        self.column_labels_line = "Run Date,Account,Account Number,Action,Symbol,Description,Type,Price,Quantity,Commission,Fees,Accrued Interest,Amount,Settlement Date"
         self.get_ticker_info = self.get_ticker_info_from_id
         self.date_format = "%m/%d/%Y"
         self.funds_db_txt = "funds_by_ticker"
@@ -53,7 +53,9 @@ class Importer(csvreader.Importer, investments.Importer):
             "security_symbol_map",
             dict(),
         )
-        self.add_precision = self.config.get("add_precision", False)  # add some decimal precision to quantity and value fields if none is present
+        self.add_precision = self.config.get(
+            "add_precision", False
+        )  # add some decimal precision to quantity and value fields if none is present
         # fmt: off
         self.header_map = {
             "Account Number": "account_number",
@@ -114,6 +116,10 @@ class Importer(csvreader.Importer, investments.Importer):
             "EXCHANGE IN": "buymf",
             "CHANGE ON": "capgainsd_lt",
             "WITHDRAWALS": "sellmf",
+            "CO CONTR": "dep",
+            "Dividend": "dividends",
+            "Contributions": "dep",
+            "Transfer": "xfer",
         }
         # fmt: on
 
@@ -236,7 +242,8 @@ class Importer(csvreader.Importer, investments.Importer):
                 if row["Accrued Interest"]
                 else round(abs(float(row["Amount"])) / abs(float(row["Quantity"])), 4)
             )
-            if not math.isclose(
+            if row["Quantity"] != ""
+            and not math.isclose(
                 float(row["Quantity"]),
                 0,
                 rel_tol=1e-09,
