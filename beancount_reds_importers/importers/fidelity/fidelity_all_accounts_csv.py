@@ -83,6 +83,9 @@ class Importer(csvreader.Importer, investments.Importer):
             self.header_map["Price"] = "unit_price"
         self.transaction_type_map = {
             # NOTE: the keys here should all be upper case
+            # NOTE: this can be extended or overridend via a config dict "transaction_type_map"
+            #   keys should match the first TWO words of the action field you want to map, single
+            #   word matches require more changes
             "REINVESTMENT": "buymf",
             "REDEMPTION FROM": "sellmf",
             "DIVIDEND RECEIVED": "dividends",
@@ -125,6 +128,7 @@ class Importer(csvreader.Importer, investments.Importer):
             "CHANGE ON": "capgainsd_lt",
             "WITHDRAWALS": "sellmf",
         }
+        self.transaction_type_map = {**self.transaction_type_map, **self.config.get("transaction_type_map", dict())}
         # fmt: on
 
     def get_max_transaction_date(self):
