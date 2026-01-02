@@ -1,4 +1,4 @@
-Run Date,Account,Account Number,Action,Symbol,Description,Type,Exchange Quantity,Exchange Currency,Currency,Price,Quantity,Exchange Rate,Commission,Fees,Accrued Interest,Amount,Settlement Date
+Run Date,Account,Account Number,Action,Symbol,Description,Type,Exchange Quantity,Exchange Currency,Currency,Price,Quantity,Exchange Rate,Commission,Fees,Accrued Interest,Amount ($),Settlement Date
 12/03/2025,"IRA Account","111111111","DIVIDEND RECEIVED VANGUARD BD INDEX FDS TOTAL BND MRKT (BND) (Cash)",BND,"VANGUARD BD INDEX FDS TOTAL BND MRKT",Cash,0,,USD,,0.000,0,,,,713.08,
 12/03/2025,"IRA Account","111111111","REINVESTMENT VANGUARD BD INDEX FDS TOTAL BND MRKT (BND) (Cash)",BND,"VANGUARD BD INDEX FDS TOTAL BND MRKT",Cash,0,,USD,74.29,9.598,0,,,,-713.08,
 12/03/2025,"HSA","222222222","DIVIDEND RECEIVED VANGUARD BD INDEX FDS TOTAL BND MRKT (BND) (Cash)",BND,"VANGUARD BD INDEX FDS TOTAL BND MRKT",Cash,0,,USD,,0.000,0,,,,0.66,

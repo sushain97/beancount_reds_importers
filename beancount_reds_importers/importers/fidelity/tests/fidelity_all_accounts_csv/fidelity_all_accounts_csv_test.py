@@ -97,6 +97,7 @@ config = {
     "fund_info": fund_info,
     "emit_filing_account_metadata": False,
     "filename_pattern": "fidelity_csv_all_accounts_transactions_.*.csv",
+    "column_labels_line": "Run Date,Account,Account Number,Action,Symbol,Description,Type,Exchange Quantity,Exchange Currency,Currency,Price,Quantity,Exchange Rate,Commission,Fees,Accrued Interest,Amount ($),Settlement Date",
 }
 
 # print(config)
