@@ -183,10 +183,9 @@ class Importer(csvreader.Importer, investments.Importer):
 
         def map_symbols(s):
             """
-            Stocks and mutual funds are represented by their
-            symbol, but bonds and core account funds (some?) use
-            their cusip, try to convert these to symbol if they
-            are present in fund_data
+            Allow for custom mapping from public ticker to private
+            ones...e.g. in case where public ticker cannot be a
+            beancount commodity
             """
             return self.security_symbol_map.get(s, s)
 
