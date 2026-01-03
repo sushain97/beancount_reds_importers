@@ -290,6 +290,6 @@ class Importer(csvreader.Importer, investments.Importer):
             ["type"],
             include_original=True,
         )
-        rdr.convert("type", "upper")
+        rdr = rdr.convert("type", "upper")
 
         return rdr
