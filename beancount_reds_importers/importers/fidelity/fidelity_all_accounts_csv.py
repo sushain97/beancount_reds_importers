@@ -61,9 +61,31 @@ class Importer(csvreader.Importer, investments.Importer):
             "security_symbol_map",
             dict(),
         )
+        self.security_description_map = self.config.get(
+            # some accounts (maybe only 401(k)?) include no symbol in the
+            # symbol column but describe the security uniquely in the description
+            # column, e.g.
+            # "security_description_map": {
+            #     "FID 500 INDEX": "FXAIX",
+            #     "VANG SM CAP IDX INST": "VSCIX",
+            #     "VANG MIDCAP IDX ADM": "VIMAX",
+            #     "VANG EM STK IDX ADM": "VEMAX",
+            #     "VANG DEV MKT IDX IS": "VTMNX",
+            # },
+            "security_description_map",
+            dict(),
+        )
         self.add_precision = self.config.get(
-            "add_precision", False
-        )  # add some decimal precision to quantity and value fields if none is present
+            # add some decimal precision to quantity and value fields if none is present
+            "add_precision",
+            False,
+        )
+        self.swap_quantity_and_price_values = self.config.get(
+            # some 401(k) accounts swap price and quantity for
+            # "Contributions" and "Dividend" transactions
+            "swap_quantity_and_price_values",
+            False,
+        )
         # fmt: off
         self.header_map = {
             "Account Number": "account_number",
@@ -189,6 +211,19 @@ class Importer(csvreader.Importer, investments.Importer):
             """
             return self.security_symbol_map.get(s, s)
 
+        def symbol_from_description(symbol, row):
+            """
+            In some accounts, particularly 401(k) need to use the
+            description to determine the symbol, to do this must
+            provide a config dict security_description_map
+            """
+            if symbol:
+                # if symbol exists, use it
+                return symbol
+
+            if (d := row.get("Description", "")) in self.security_description_map:
+                return self.security_description_map[d]
+
         def adjust_muni_share_count(quantity, row):
             """
             Fidelity reports muni shares as 100x the actual value
@@ -244,8 +279,26 @@ class Importer(csvreader.Importer, investments.Importer):
 
         rdr = rdr.convert("Symbol", cusip_to_symbols)
         rdr = rdr.convert("Symbol", map_symbols)
+        rdr = rdr.convert("Symbol", symbol_from_description, pass_row=True)
         if self.fix_muni_shares:
             rdr = rdr.convert("Quantity", adjust_muni_share_count, pass_row=True)
+
+        if self.swap_quantity_and_price_values:
+            # handle 401K entries where Price is used for Quantity
+            rdr = rdr.convert(
+                "Quantity",
+                lambda v, row: row["Price"]
+                if row["Action"] in ["Contributions", "Dividend"]
+                else v,
+                pass_row=True,
+            )
+            rdr = rdr.convert(
+                "Price",
+                lambda v, row: ""
+                if row["Action"] in ["Contributions", "Dividend"]
+                else v,
+                pass_row=True,
+            )
 
         # add an inferred price column b/c csv prices are only to two decimals
         rdr = rdr.addfield(
