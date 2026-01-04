@@ -16,7 +16,7 @@ class Importer(csvreader.Importer, investments.Importer):
     def custom_init(self):
         self.max_rounding_error = 0.04
         self.file_encoding = "utf-8-sig"
-        self.filename_pattern_def = "Accounts_History.*"
+        self.filename_pattern_def = ".*.csv"
 
         # Fidelity is inconsistent in the csv columns and even column labels, the bewlow two settings
         # should exactly match what is in your csv...if not override via the config
@@ -152,6 +152,7 @@ class Importer(csvreader.Importer, investments.Importer):
         }
         self.transaction_type_map = {**self.transaction_type_map, **self.config.get("transaction_type_map", dict())}
         # fmt: on
+        self.get_payee = lambda ot: "Fidelity"
 
     def get_max_transaction_date(self):
         try:
@@ -170,11 +171,11 @@ class Importer(csvreader.Importer, investments.Importer):
         return date
 
     def deep_identify(self, file):
-        return re.search(
-            self.header_identifier, cache.get_file(file).head(), flags=re.MULTILINE
-        )
+        return True
 
     def skip_transaction(self, ot):
+        if ot.type in self.config.get("skip_transaction_types", []):
+            return True
         if ot.account_number != self.config["account_number"]:
             return True
         return ot.type in ["MERGER MER", "ADJUST FEE", "DISTRIBUTION", "JOURNALED JNL"]
@@ -312,7 +313,8 @@ class Importer(csvreader.Importer, investments.Importer):
                 if row["Accrued Interest"]
                 else round(abs(float(row["Amount"])) / abs(float(row["Quantity"])), 4)
             )
-            if not math.isclose(
+            if row["Quantity"]
+            and not math.isclose(
                 float(row["Quantity"]),
                 0,
                 rel_tol=1e-09,
@@ -346,3 +348,43 @@ class Importer(csvreader.Importer, investments.Importer):
         rdr = rdr.convert("type", "upper")
 
         return rdr
+
+    def security_narration(self, ot):
+        rewrites = {
+            "BUYMF": "MONEY FUND PURCHASE",
+            "DIVIDENDS": "DIVIDEND RECEIVED",
+            "BUYSTOCK": "BUY",
+            "REINVEST": "DIVIDEND REINVESTMENT",
+            "CAPGAINSD_ST": "DIV REINVEST ST CAP GAIN",
+            "CAPGAINSD_LT": "DIV REINVEST LT CAP GAIN",
+        }
+        t = ot.type.upper()
+        t = rewrites.get(t, t)
+        return f"{t} - {super().security_narration(ot)}"
+
+    def generate_transfer_entry(self, ot, file, counter):
+        e = super().generate_transfer_entry(ot, file, counter)
+        for m in ["FOREIGN TAX PAID", "FEE CHARGED"]:
+            if ot.memo.startswith(m):
+                e = e._replace(narration=f"{m} - {super().security_narration(ot)}")
+        return e
+
+    def extract(self, file, existing_entries=None):
+        entries = super().extract(file, existing_entries)
+        new_entries = []
+
+        for entry in entries:
+            if isinstance(entry, data.Transaction):
+                postings = [
+                    p
+                    for p in entry.postings
+                    if not ("Fees" in p.account and p.units.number == 0)
+                ]
+                entry = entry._replace(postings=postings)
+
+                if all(p.units.number == 0 for p in entry.postings):
+                    continue
+
+            new_entries.append(entry)
+
+        return new_entries
